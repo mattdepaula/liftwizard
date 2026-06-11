@@ -46,11 +46,20 @@ class UsesLog4jFatalTest implements RewriteTest {
 		}
 		""";
 
+	private static final String LOG4J2_LOGGER_STUB = """
+		package org.apache.logging.log4j;
+		public interface Logger {
+		    static Logger getLogger(Class clazz) { return null; }
+		    void fatal(Object message);
+		    void fatal(Object message, Throwable t);
+		}
+		""";
+
 	@Override
 	public void defaults(RecipeSpec spec) {
 		spec
 			.recipe(new UsesLog4jFatal())
-			.parser(JavaParser.fromJavaVersion().dependsOn(LOG4J_CATEGORY_STUB, LOG4J_LOGGER_STUB));
+			.parser(JavaParser.fromJavaVersion().dependsOn(LOG4J_CATEGORY_STUB, LOG4J_LOGGER_STUB, LOG4J2_LOGGER_STUB));
 	}
 
 	@DocumentExample
@@ -101,6 +110,44 @@ class UsesLog4jFatalTest implements RewriteTest {
 
 					    void detectsThrowableArgument(Exception exception) {
 					        /*~~>*/LOGGER.fatal("Failure", exception);
+					    }
+					}
+					"""
+				)
+			);
+	}
+
+	@Test
+	void detectsLog4j2FatalCall() {
+		this.rewriteRun(
+				java(
+					"""
+					import org.apache.logging.log4j.Logger;
+
+					class Test {
+					    private static final Logger LOGGER = Logger.getLogger(Test.class);
+
+					    void detectsStringLiteral() {
+					        LOGGER.fatal("Simple message");
+					    }
+
+					    void detectsObjectArgument(Object myObject) {
+					        LOGGER.fatal(myObject);
+					    }
+					}
+					""",
+					"""
+					import org.apache.logging.log4j.Logger;
+
+					class Test {
+					    private static final Logger LOGGER = Logger.getLogger(Test.class);
+
+					    void detectsStringLiteral() {
+					        /*~~>*/LOGGER.fatal("Simple message");
+					    }
+
+					    void detectsObjectArgument(Object myObject) {
+					        /*~~>*/LOGGER.fatal(myObject);
 					    }
 					}
 					"""

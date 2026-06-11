@@ -27,7 +27,7 @@ description: >-
     Files with object logging or fatal logging remain on Log4j 1 and must be
     migrated manually.
 preconditions:
-    - io.liftwizard.rewrite.logging.DoesNotUseLog4j1ObjectLogging
+    - io.liftwizard.rewrite.logging.DoesNotUseLog4jObjectLogging
     - io.liftwizard.rewrite.logging.DoesNotUseLog4jFatal
 recipeList:
     - org.openrewrite.java.ChangeType:

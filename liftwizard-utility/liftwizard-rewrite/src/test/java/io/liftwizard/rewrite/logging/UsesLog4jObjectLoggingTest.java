@@ -24,9 +24,9 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
-class UsesLog4j1ObjectLoggingTest implements RewriteTest {
+class UsesLog4jObjectLoggingTest implements RewriteTest {
 
-	private static final String LOG4J_CATEGORY_STUB = """
+	private static final String LOG4J1_CATEGORY_STUB = """
 		package org.apache.log4j;
 		public class Category {
 		    public static Logger getLogger(Class clazz) { return null; }
@@ -39,18 +39,30 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 		}
 		""";
 
-	private static final String LOG4J_LOGGER_STUB = """
+	private static final String LOG4J1_LOGGER_STUB = """
 		package org.apache.log4j;
 		public class Logger extends Category {
 		    public static Logger getLogger(Class clazz) { return null; }
 		}
 		""";
 
+	private static final String LOG4J2_LOGGER_STUB = """
+		package org.apache.logging.log4j;
+		public interface Logger {
+		    static Logger getLogger(Class clazz) { return null; }
+		    void debug(Object message);
+		    void info(Object message);
+		    void warn(Object message);
+		    void error(Object message);
+		    void fatal(Object message);
+		}
+		""";
+
 	@Override
 	public void defaults(RecipeSpec spec) {
 		spec
-			.recipe(new UsesLog4j1ObjectLogging())
-			.parser(JavaParser.fromJavaVersion().dependsOn(LOG4J_CATEGORY_STUB, LOG4J_LOGGER_STUB));
+			.recipe(new UsesLog4jObjectLogging())
+			.parser(JavaParser.fromJavaVersion().dependsOn(LOG4J1_CATEGORY_STUB, LOG4J1_LOGGER_STUB, LOG4J2_LOGGER_STUB));
 	}
 
 	@DocumentExample
@@ -143,6 +155,50 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 
 					    void doesNotDetectStringBuilder(StringBuilder builder) {
 					        LOGGER.info(builder);
+					    }
+					}
+					"""
+				)
+			);
+	}
+
+	@Test
+	void detectsLog4j2ObjectArgument() {
+		this.rewriteRun(
+				java(
+					"""
+					import org.apache.logging.log4j.Logger;
+
+					class Test {
+					    private static final Logger LOGGER = Logger.getLogger(Test.class);
+
+					    void detectsObjectArgument(Object myObject) {
+					        LOGGER.info(myObject);
+					    }
+
+					    void detectsAcrossLogLevels(Object obj) {
+					        LOGGER.debug(obj);
+					        LOGGER.warn(obj);
+					        LOGGER.error(obj);
+					        LOGGER.fatal(obj);
+					    }
+					}
+					""",
+					"""
+					import org.apache.logging.log4j.Logger;
+
+					class Test {
+					    private static final Logger LOGGER = Logger.getLogger(Test.class);
+
+					    void detectsObjectArgument(Object myObject) {
+					        /*~~>*/LOGGER.info(myObject);
+					    }
+
+					    void detectsAcrossLogLevels(Object obj) {
+					        /*~~>*/LOGGER.debug(obj);
+					        /*~~>*/LOGGER.warn(obj);
+					        /*~~>*/LOGGER.error(obj);
+					        /*~~>*/LOGGER.fatal(obj);
 					    }
 					}
 					"""

@@ -27,32 +27,33 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.marker.SearchResult;
 
 /**
- * Search recipe that finds Log4j 1.x {@code fatal} logging calls.
+ * Search recipe that finds Log4j 1.x and 2.x {@code fatal} logging calls.
  *
- * <p>Log4j 1's {@code Category.fatal(Object)} logs at the {@code FATAL} level, which has no
- * equivalent in SLF4J (whose highest level is {@code ERROR}). Migrating such calls to SLF4J
- * would either break compilation or silently downgrade them to {@code error}, losing the
- * {@code FATAL} severity.
+ * <p>Log4j 1's {@code Category.fatal(Object)} and Log4j 2's {@code Logger.fatal(Object)} both log
+ * at the {@code FATAL} level, which has no equivalent in SLF4J (whose highest level is
+ * {@code ERROR}). Migrating such calls to SLF4J would either break compilation or silently
+ * downgrade them to {@code error}, losing the {@code FATAL} severity.
  *
  * <p>This recipe is used as the basis for the {@link DoesNotUseLog4jFatal} precondition, which
- * prevents the Log4j 1 to SLF4J migration from running on files that use this pattern.
+ * prevents the Log4j to SLF4J migration from running on files that use this pattern.
  */
 public final class UsesLog4jFatal extends Recipe {
 
 	private static final List<MethodMatcher> LOG_MATCHERS = List.of(
 		new MethodMatcher("org.apache.log4j.Logger fatal(..)", true),
-		new MethodMatcher("org.apache.log4j.Category fatal(..)", true)
+		new MethodMatcher("org.apache.log4j.Category fatal(..)", true),
+		new MethodMatcher("org.apache.logging.log4j.Logger fatal(..)", true)
 	);
 
 	@Override
 	public String getDisplayName() {
-		return "Find Log4j 1.x fatal logging calls";
+		return "Find Log4j fatal logging calls";
 	}
 
 	@Override
 	public String getDescription() {
 		return (
-			"Finds Log4j 1.x logging calls that use the `fatal` level (e.g., `LOGGER.fatal(message)`). "
+			"Finds Log4j 1.x and 2.x logging calls that use the `fatal` level (e.g., `LOGGER.fatal(message)`). "
 			+ "SLF4J has no `fatal` level, so these calls cannot be migrated automatically without "
 			+ "losing the FATAL severity."
 		);

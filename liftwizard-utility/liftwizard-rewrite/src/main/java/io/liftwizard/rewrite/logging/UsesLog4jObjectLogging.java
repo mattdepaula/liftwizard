@@ -29,21 +29,22 @@ import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.SearchResult;
 
 /**
- * Search recipe that finds Log4j 1.x logging calls where the message argument is not a String.
+ * Search recipe that finds Log4j 1.x and 2.x logging calls where the message argument is not a String.
  *
- * <p>Log4j 1's {@code Category.info(Object)} accepts any Object, enabling structured logging
- * where appenders can inspect the argument's type via {@code instanceof}. Migrating such calls
- * to SLF4J (which only has {@code info(String)}) would either break compilation or silently
- * destroy structured logging if transformed to {@code info("{}", object)}.
+ * <p>Log4j 1's {@code Category.info(Object)} and Log4j 2's {@code Logger.info(Object)} both accept
+ * any Object, enabling structured logging where appenders can inspect the argument's type via
+ * {@code instanceof}. Migrating such calls to SLF4J (which only has {@code info(String)}) would
+ * either break compilation or silently destroy structured logging if transformed to
+ * {@code info("{}", object)}.
  *
  * <p>{@code Throwable} message arguments are excluded: calls like {@code LOGGER.error(exception)}
  * are not structured object logging and migrate safely to SLF4J, which has a native
  * {@code error(String, Throwable)} overload.
  *
- * <p>This recipe is used as the basis for the {@link DoesNotUseLog4j1ObjectLogging} precondition,
- * which prevents the Log4j 1 to SLF4J migration from running on files that use this pattern.
+ * <p>This recipe is used as the basis for the {@link DoesNotUseLog4jObjectLogging} precondition,
+ * which prevents the Log4j to SLF4J migration from running on files that use this pattern.
  */
-public final class UsesLog4j1ObjectLogging extends Recipe {
+public final class UsesLog4jObjectLogging extends Recipe {
 
 	private static final List<MethodMatcher> LOG_MATCHERS = List.of(
 		new MethodMatcher("org.apache.log4j.Category debug(..)", true),
@@ -55,18 +56,23 @@ public final class UsesLog4j1ObjectLogging extends Recipe {
 		new MethodMatcher("org.apache.log4j.Logger info(..)", true),
 		new MethodMatcher("org.apache.log4j.Logger warn(..)", true),
 		new MethodMatcher("org.apache.log4j.Logger error(..)", true),
-		new MethodMatcher("org.apache.log4j.Logger fatal(..)", true)
+		new MethodMatcher("org.apache.log4j.Logger fatal(..)", true),
+		new MethodMatcher("org.apache.logging.log4j.Logger debug(..)", true),
+		new MethodMatcher("org.apache.logging.log4j.Logger info(..)", true),
+		new MethodMatcher("org.apache.logging.log4j.Logger warn(..)", true),
+		new MethodMatcher("org.apache.logging.log4j.Logger error(..)", true),
+		new MethodMatcher("org.apache.logging.log4j.Logger fatal(..)", true)
 	);
 
 	@Override
 	public String getDisplayName() {
-		return "Find Log4j 1.x object logging calls";
+		return "Find Log4j object logging calls";
 	}
 
 	@Override
 	public String getDescription() {
 		return (
-			"Finds Log4j 1.x logging calls where the message argument is not a CharSequence. "
+			"Finds Log4j 1.x and 2.x logging calls where the message argument is not a CharSequence. "
 			+ "These calls pass an Object directly (e.g., `LOGGER.info(myObject)`) "
 			+ "which allows appenders to inspect the object's type for structured logging. "
 			+ "CharSequence message arguments (e.g., String, StringBuilder) and Throwable "
@@ -77,10 +83,10 @@ public final class UsesLog4j1ObjectLogging extends Recipe {
 
 	@Override
 	public TreeVisitor<?, ExecutionContext> getVisitor() {
-		return new Log4j1ObjectLoggingVisitor();
+		return new Log4jObjectLoggingVisitor();
 	}
 
-	static final class Log4j1ObjectLoggingVisitor extends JavaIsoVisitor<ExecutionContext> {
+	static final class Log4jObjectLoggingVisitor extends JavaIsoVisitor<ExecutionContext> {
 
 		@Override
 		public J.MethodInvocation visitMethodInvocation(J.MethodInvocation method, ExecutionContext ctx) {

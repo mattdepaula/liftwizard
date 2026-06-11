@@ -232,9 +232,9 @@ public final class ParameterizedLogging extends Recipe {
 			// NOTE: The upstream recipe has an else-if block here that transforms simple object
 			// arguments (e.g., LOGGER.info(myObject)) to parameterized form (LOGGER.info("{}", myObject)).
 			// This transformation is intentionally excluded because it silently destroys structured
-			// logging: Log4j 1's info(Object) allows appenders to inspect the argument via instanceof,
+			// logging: Log4j's info(Object) allows appenders to inspect the argument via instanceof,
 			// while info("{}", myObject) reduces it to a formatted string.
-			// See DoesNotUseLog4j1ObjectLogging for the precondition that skips files with this pattern.
+			// See DoesNotUseLog4jObjectLogging for the precondition that skips files with this pattern.
 
 			if (Boolean.TRUE.equals(this.removeToString)) {
 				m = m.withArguments(
