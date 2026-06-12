@@ -16,11 +16,13 @@
 
 package io.liftwizard.rewrite.logging;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.DocumentExample;
 import org.openrewrite.java.JavaParser;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
+import org.openrewrite.test.TypeValidation;
 
 import static org.openrewrite.java.Assertions.java;
 
@@ -137,5 +139,65 @@ class ParameterizedLoggingTest implements RewriteTest {
 					"""
 				)
 			);
+	}
+
+	/**
+	 * Defect proofs for arguments whose type degrades to {@link org.openrewrite.java.tree.JavaType.Unknown}.
+	 * These need their own parser/validation configuration ({@link TypeValidation#none()} plus an
+	 * intentionally unresolved exception type), so they are isolated here rather than mixed into the
+	 * fully type-validated {@link ParameterizedLoggingTest#replacePatterns} example.
+	 */
+	@Nested
+	class UnresolvedType implements RewriteTest {
+
+		@Override
+		public void defaults(RecipeSpec spec) {
+			spec
+				.recipe(new ParameterizedLogging("org.slf4j.Logger info(..)", null))
+				.parser(JavaParser.fromJavaVersion().classpath("slf4j-api"))
+				.typeValidationOptions(TypeValidation.none());
+		}
+
+		/**
+		 * When the exception argument's type degrades to {@code Unknown} (its type
+		 * {@code com.unresolved.AppException} is neither on the classpath nor stubbed),
+		 * {@code TypeUtils.isAssignableTo("java.lang.Throwable", ..)} returns false, the exception is
+		 * misclassified as a regular argument, and the synthesized call reorders the arguments to the
+		 * wrong {@code LOGGER.info("Error for {}", e, name)}. This asserts the correct ordering, so it
+		 * fails until the recipe treats an unresolved trailing argument conservatively.
+		 */
+		@Test
+		void throwableWithUnknownTypeKeepsTrailingPosition() {
+			this.rewriteRun(
+					java(
+						"""
+						import org.slf4j.Logger;
+						import org.slf4j.LoggerFactory;
+						import com.unresolved.AppException;
+
+						class Test {
+						    private static final Logger LOGGER = LoggerFactory.getLogger(Test.class);
+
+						    void test(String name, AppException e) {
+						        LOGGER.info("Error for " + name, e);
+						    }
+						}
+						""",
+						"""
+						import org.slf4j.Logger;
+						import org.slf4j.LoggerFactory;
+						import com.unresolved.AppException;
+
+						class Test {
+						    private static final Logger LOGGER = LoggerFactory.getLogger(Test.class);
+
+						    void test(String name, AppException e) {
+						        LOGGER.info("Error for {}", name, e);
+						    }
+						}
+						"""
+					)
+				);
+		}
 	}
 }
