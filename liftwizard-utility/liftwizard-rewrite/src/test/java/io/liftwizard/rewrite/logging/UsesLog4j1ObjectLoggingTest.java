@@ -40,7 +40,10 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 		this.rewriteRun(
 				java(
 					"""
+					import org.apache.log4j.Level;
 					import org.apache.log4j.Logger;
+
+					import java.util.function.Consumer;
 
 					class MyEvent {
 					    String name;
@@ -64,10 +67,34 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 					        LOGGER.error(obj);
 					        LOGGER.fatal(obj);
 					    }
+
+					    void detectsObjectsLogWithPriority(Object obj) {
+					        LOGGER.log(Level.TRACE, obj);
+					        LOGGER.log(Level.DEBUG, obj);
+					        LOGGER.log(Level.INFO, obj);
+					        LOGGER.log(Level.WARN, obj);
+					        LOGGER.log(Level.ERROR, obj);
+					        LOGGER.log(Level.FATAL, obj);
+					    }
+
+					    void detectsObjectMethodReference() {
+					        take(LOGGER::trace);
+					        take(LOGGER::debug);
+					        take(LOGGER::info);
+					        take(LOGGER::warn);
+					        take(LOGGER::error);
+					        take(LOGGER::fatal);
+					    }
+
+					    void take(Consumer<MyEvent> sink) {
+					    }
 					}
 					""",
 					"""
+					import org.apache.log4j.Level;
 					import org.apache.log4j.Logger;
+
+					import java.util.function.Consumer;
 
 					class MyEvent {
 					    String name;
@@ -91,6 +118,27 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 					        /*~~>*/LOGGER.error(obj);
 					        /*~~>*/LOGGER.fatal(obj);
 					    }
+
+					    void detectsObjectsLogWithPriority(Object obj) {
+					        /*~~>*/LOGGER.log(Level.TRACE, obj);
+					        /*~~>*/LOGGER.log(Level.DEBUG, obj);
+					        /*~~>*/LOGGER.log(Level.INFO, obj);
+					        /*~~>*/LOGGER.log(Level.WARN, obj);
+					        /*~~>*/LOGGER.log(Level.ERROR, obj);
+					        /*~~>*/LOGGER.log(Level.FATAL, obj);
+					    }
+
+					    void detectsObjectMethodReference() {
+					        take(/*~~>*/LOGGER::trace);
+					        take(/*~~>*/LOGGER::debug);
+					        take(/*~~>*/LOGGER::info);
+					        take(/*~~>*/LOGGER::warn);
+					        take(/*~~>*/LOGGER::error);
+					        take(/*~~>*/LOGGER::fatal);
+					    }
+
+					    void take(Consumer<MyEvent> sink) {
+					    }
 					}
 					"""
 				)
@@ -102,7 +150,10 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 		this.rewriteRun(
 				java(
 					"""
+					import org.apache.log4j.Level;
 					import org.apache.log4j.Logger;
+
+					import java.util.function.Consumer;
 
 					class Test {
 					    private static final Logger LOGGER = Logger.getLogger(Test.class);
@@ -126,6 +177,28 @@ class UsesLog4j1ObjectLoggingTest implements RewriteTest {
 
 					    void doesNotDetectStringBuilder(StringBuilder builder) {
 					        LOGGER.info(builder);
+					    }
+
+					    void doesNotDetectLogWithStringMessage(String message, StringBuilder builder) {
+					        LOGGER.log(Level.TRACE, message);
+					        LOGGER.log(Level.DEBUG, message);
+					        LOGGER.log(Level.INFO, message);
+					        LOGGER.log(Level.WARN, message);
+					        LOGGER.log(Level.ERROR, message);
+					        LOGGER.log(Level.FATAL, message);
+					        LOGGER.log(Level.INFO, builder);
+					    }
+
+					    void doesNotDetectStringMethodReference() {
+					        take(LOGGER::trace);
+					        take(LOGGER::debug);
+					        take(LOGGER::info);
+					        take(LOGGER::warn);
+					        take(LOGGER::error);
+					        take(LOGGER::fatal);
+					    }
+
+					    void take(Consumer<String> sink) {
 					    }
 					}
 					"""
